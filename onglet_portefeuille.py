@@ -36,7 +36,7 @@ def _prix(source, charger, symbole, i=0):
     return charger("yahoo", symbole, "5y", "1d")["Close"]
 
 
-def afficher(source: str, charger, infos_brutes):
+def afficher(source: str, charger, infos_brutes, rechercher=None):
     st.write("Un bon portefeuille, ce n'est pas trouver « la » bonne action : c'est une répartition adaptée à "
              "ton horizon et à ta capacité à supporter les baisses, que tu peux tenir pendant des années.")
     construire, analyser = st.tabs(["🧭 Construire mon portefeuille", "🔍 Analyser mon portefeuille"])
@@ -124,11 +124,12 @@ def afficher(source: str, charger, infos_brutes):
 
     # ================================================= Analyser
     with analyser:
-        st.write("Saisis tes placements actuels (symbole Yahoo et montant en euros). Le symbole se trouve avec la "
-                 "recherche par nom dans la barre de gauche.")
+        st.write("Ajoute tes placements actuels avec le sélecteur ci-dessous, puis ajuste les montants directement "
+                 "dans le tableau si besoin.")
         local = os.environ.get("BOURSE_LOCAL") == "1"  # appli lancée sur l'ordinateur (pas le site web)
         if "pf_lignes" not in st.session_state:
             st.session_state.pf_lignes = pf.charger_portefeuille() if local else list(pf.EXEMPLE)
+            st.session_state.pf_noms = {l_["Symbole"]: l_["Nom"] for l_ in st.session_state.pf_lignes if l_.get("Nom")}
         if not local:
             fichier = st.file_uploader("Reprendre un portefeuille enregistré (fichier .json)", type=["json"],
                                        key="pf_import")
@@ -143,21 +144,64 @@ def afficher(source: str, charger, infos_brutes):
                     st.rerun()
                 except Exception as e:
                     st.error(f"Fichier illisible : {e}")
+        noms = {sym: nom for nom, sym in donnees.EXEMPLES.items()}
+        noms.update(st.session_state.get("pf_noms", {}))
+        depart = pd.DataFrame(st.session_state.pf_lignes, columns=["Symbole", "Montant"])
+        depart.insert(0, "Nom", depart["Symbole"].map(lambda x: noms.get(str(x).upper(), "")))
         table = st.data_editor(
-            pd.DataFrame(st.session_state.pf_lignes, columns=["Symbole", "Montant"]),
-            num_rows="dynamic", width="stretch", key="pf_editeur",
-            column_config={"Symbole": st.column_config.TextColumn("Symbole", required=True),
+            depart, num_rows="dynamic", width="stretch", key="pf_editeur", hide_index=True,
+            column_config={"Nom": st.column_config.TextColumn("Placement", disabled=True),
+                           "Symbole": st.column_config.TextColumn("Symbole", required=True),
                            "Montant": st.column_config.NumberColumn("Montant actuel (€)", min_value=0.0,
                                                                     step=100.0, format="%.0f €")})
-        table = table.dropna(subset=["Symbole"])
+        table = table[["Symbole", "Montant"]].dropna(subset=["Symbole"])
         table["Symbole"] = table["Symbole"].astype(str).str.strip().str.upper()
         table = table[(table["Symbole"] != "") & (table["Montant"].fillna(0) > 0)]
+        st.caption("Pour supprimer une ligne : coche-la à gauche puis appuie sur Suppr, ou mets son montant à 0.")
+
+        with st.container(border=True):
+            st.markdown("**➕ Ajouter un placement**")
+            mode = st.radio("Comment le trouver", ["Dans la liste", "Recherche par nom"], horizontal=True,
+                            key="pf_add_mode", label_visibility="collapsed")
+            a, b, c, d = st.columns([2, 3, 1.5, 1], vertical_alignment="bottom")
+            choix_sym, choix_nom = None, None
+            if mode == "Dans la liste":
+                cat = a.selectbox("Catégorie", list(donnees.CATALOGUE), index=list(donnees.CATALOGUE).index("ETF"),
+                                  key="pf_add_cat")
+                nom = b.selectbox("Placement", list(donnees.CATALOGUE[cat]), key="pf_add_nom")
+                choix_sym, choix_nom = donnees.CATALOGUE[cat][nom], nom
+            else:
+                texte = a.text_input("Nom", placeholder="ex. Michelin, Amundi…", key="pf_add_txt")
+                res = rechercher(texte) if (rechercher and len(texte.strip()) >= 2) else []
+                if res:
+                    r = b.selectbox("Résultats", res, key="pf_add_res",
+                                    format_func=lambda q: f"{q['nom']} · {q['symbole']} · {q['place']}")
+                    choix_sym, choix_nom = r["symbole"], r["nom"]
+                else:
+                    b.selectbox("Résultats", ["Tape au moins 2 lettres" if len(texte.strip()) < 2 else "Aucun résultat"],
+                                disabled=True, key="pf_add_vide")
+            montant_aj = c.number_input("Montant (€)", 0.0, 1e9, 1000.0, 100.0, key="pf_add_mt")
+            if d.button("Ajouter", key="pf_add_btn", disabled=choix_sym is None, width="stretch"):
+                lignes_act = table.to_dict("records")
+                for l_ in lignes_act:
+                    if l_["Symbole"] == choix_sym:
+                        l_["Montant"] = float(l_["Montant"]) + montant_aj
+                        break
+                else:
+                    lignes_act.append({"Symbole": choix_sym, "Montant": montant_aj})
+                st.session_state.pf_lignes = lignes_act
+                st.session_state.setdefault("pf_noms", {})[choix_sym] = choix_nom
+                st.session_state.pop("pf_editeur", None)
+                st.toast(f"{choix_nom} ajouté")
+                st.rerun()
+
         b1, b2, _ = st.columns([1, 1, 3])
         if local:
             if b1.button("💾 Enregistrer", key="pf_save"):
                 st.session_state.pf_lignes = table.to_dict("records")
                 try:
-                    pf.enregistrer_portefeuille(st.session_state.pf_lignes)
+                    pf.enregistrer_portefeuille([{**l_, "Nom": noms.get(l_["Symbole"], "")}
+                                                 for l_ in st.session_state.pf_lignes])
                     st.toast("Portefeuille enregistré")
                 except Exception as e:
                     st.error(f"Enregistrement impossible : {e}")

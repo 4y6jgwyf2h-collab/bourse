@@ -131,7 +131,7 @@ with st.sidebar:
 # ---------------------------------------------------------------- Espaces sans actif
 if espace.startswith("💼"):
     st.title("💼 Mon portefeuille")
-    onglet_portefeuille.afficher(source, charger, infos_brutes)
+    onglet_portefeuille.afficher(source, charger, infos_brutes, rechercher)
     st.stop()
 if espace.startswith("🌍"):
     st.title("🌍 Économie")
