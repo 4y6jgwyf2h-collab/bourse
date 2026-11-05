@@ -1,0 +1,336 @@
+<title>Bourse Lucide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout : barre de contrôle en haut, puis verdict + graphique, puis détail en deux colonnes */
+:root{
+  --bg:#f6f7f5; --surface:#ffffff; --fg:#17201c; --muted:#5d6a63; --line:#dde3df;
+  --accent:#1f5f4a; --accent-soft:#e3efe9;
+  --up:#16865a; --down:#c8432f; --neutral:#7a847f;
+  --display:"Fraunces",Georgia,serif; --body:"Public Sans",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101614; --surface:#18201d; --fg:#e7ece9; --muted:#9aa7a0; --line:#2a3531;
+  --accent:#6fc6a2; --accent-soft:#1f2e28; --up:#4cc38a; --down:#f07a63; --neutral:#8e9993; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101614; --surface:#18201d; --fg:#e7ece9; --muted:#9aa7a0; --line:#2a3531;
+  --accent:#6fc6a2; --accent-soft:#1f2e28; --up:#4cc38a; --down:#f07a63; --neutral:#8e9993; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 20px}
+h1{font-family:var(--display);font-size:1.9rem;margin:0;letter-spacing:-.01em}
+h2{font-family:var(--display);font-size:1.2rem;margin:0 0 10px}
+.tag{font-size:.82rem;color:var(--muted)}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:end;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+select,input[type=number]{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+button,.filebtn{font:inherit;font-weight:600;border:1px solid var(--accent);background:var(--accent);color:var(--bg);border-radius:6px;padding:7px 14px;cursor:pointer}
+.filebtn{background:transparent;color:var(--accent)}
+button:focus-visible,.filebtn:focus-within,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.filebtn input{position:absolute;opacity:0;width:1px;height:1px}
+.verdict{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.kpi{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kpi .lab{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.kpi .val{font-family:var(--mono);font-size:1.5rem;font-variant-numeric:tabular-nums}
+.kpi .sub{font-size:.82rem;color:var(--muted);font-family:var(--mono)}
+.pill{display:inline-block;padding:2px 10px;border-radius:999px;font-weight:600;font-family:var(--body);font-size:1rem;color:#fff;width:max-content}
+.gauge{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--down),var(--neutral),var(--up));position:relative;margin-top:8px}
+.gauge i{position:absolute;top:-4px;width:3px;height:14px;background:var(--fg);border-radius:2px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+#chart{width:100%;height:640px}
+#btchart{width:100%;height:320px}
+.cols{display:grid;grid-template-columns:3fr 2fr;gap:20px}
+@media (max-width:820px){.cols{grid-template-columns:1fr}#chart{height:520px}}
+ul.sig{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+ul.sig li{display:grid;grid-template-columns:54px 1fr;gap:10px;align-items:start}
+.vote{font-family:var(--mono);font-size:.8rem;text-align:center;border-radius:4px;padding:2px 0;font-weight:500}
+.fam{font-weight:600}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+td,th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left}
+td.n,th.n{text-align:right;font-family:var(--mono)}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:500}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.note{font-size:.82rem;color:var(--muted)}
+.warn{font-size:.82rem;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
+.err{color:var(--down);font-weight:600}
+details summary{cursor:pointer;font-weight:600}
+.help p{margin:.4em 0}
+.tablewrap{overflow-x:auto}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Bourse Lucide</h1>
+    <span class="tag">Aide à l'analyse technique · aucun conseil en investissement</span>
+  </header>
+
+  <section class="controls" aria-label="Données">
+    <div class="field">
+      <label for="demo">Données d'exemple</label>
+      <select id="demo">
+        <option value="t">Exemple : action en tendance haussière</option>
+        <option value="d">Exemple : action en repli</option>
+        <option value="r">Exemple : marché sans tendance</option>
+        <option value="c">Exemple : crypto très volatile</option>
+      </select>
+    </div>
+    <label class="filebtn" for="csv">Importer un CSV de cours<input id="csv" type="file" accept=".csv,.txt,text/csv"></label>
+    <div class="field">
+      <label for="atrm">Stop (× ATR)</label>
+      <input id="atrm" type="number" min="1" max="5" step="0.5" value="2" style="width:80px">
+    </div>
+    <span class="note" id="srcnote"></span>
+  </section>
+
+  <section class="verdict" id="verdict" aria-label="Synthèse"></section>
+
+  <section class="panel"><div id="chart"></div></section>
+
+  <div class="cols">
+    <section class="panel">
+      <h2>Pourquoi ce score</h2>
+      <ul class="sig" id="sig"></ul>
+    </section>
+    <section class="panel">
+      <h2>Gestion du risque</h2>
+      <div id="risk"></div>
+      <div class="row" style="margin-top:12px">
+        <div class="field"><label for="cap">Capital (€)</label><input id="cap" type="number" value="10000" step="500" min="100" style="width:120px"></div>
+        <div class="field"><label for="rk">Risque max. (%)</label><input id="rk" type="number" value="1" step="0.25" min="0.25" max="5" style="width:90px"></div>
+      </div>
+      <p id="size"></p>
+      <h2 style="margin-top:16px">Statistiques</h2>
+      <table id="stats"></table>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>Tester une stratégie sur l'historique</h2>
+    <div class="row">
+      <div class="field"><label for="strat">Stratégie</label>
+        <select id="strat">
+          <option value="cross">Croisement de moyennes 20 / 50</option>
+          <option value="rsi">RSI : acheter sous 30, vendre au-dessus de 70</option>
+          <option value="macd">MACD au-dessus de sa ligne de signal</option>
+          <option value="score">Score des signaux supérieur à +15</option>
+        </select></div>
+      <div class="field"><label for="fees">Frais par ordre (%)</label><input id="fees" type="number" value="0.1" step="0.05" min="0" style="width:90px"></div>
+    </div>
+    <div id="btchart"></div>
+    <div class="tablewrap"><table id="bt"></table></div>
+    <p class="note">Décision prise à la clôture, exécutée la séance suivante. Un bon résultat passé peut venir du hasard : teste plusieurs actifs et plusieurs périodes.</p>
+  </section>
+
+  <section class="panel help">
+    <details>
+      <summary>Comment obtenir le CSV d'une action ou d'une crypto</summary>
+      <p>Sur Yahoo Finance, ouvre la page de l'actif, onglet « Historique » (Historical Data), choisis la période puis « Télécharger ». Les exports de Boursorama, Investing.com ou d'un courtier fonctionnent aussi s'ils contiennent une date et les colonnes Ouverture, Plus haut, Plus bas, Clôture (en français ou en anglais). Séparateur virgule ou point-virgule, décimales avec point ou virgule.</p>
+    </details>
+    <details>
+      <summary>Comprendre les indicateurs</summary>
+      <p><b>Moyennes mobiles 20 / 50 / 200</b> : moyenne des cours sur N séances. Au-dessus de la MM 200, la tendance de fond est haussière. MM 50 qui passe au-dessus de la MM 200 : croisement doré ; l'inverse : croisement de la mort.</p>
+      <p><b>RSI</b> : de 0 à 100. Sous 30, forte baisse récente (survente) ; au-dessus de 70, forte hausse récente (surachat).</p>
+      <p><b>MACD</b> : écart entre deux moyennes exponentielles (12 et 26). Au-dessus de sa ligne de signal, le momentum est positif.</p>
+      <p><b>Bandes de Bollinger</b> : enveloppe à ±2 écarts-types autour de la MM 20. En sortir signale un mouvement inhabituel.</p>
+      <p><b>ATR</b> : amplitude moyenne d'une séance, utile pour placer un stop adapté à la volatilité.</p>
+      <p><b>Score</b> : chaque règle vote de −2 à +2, le total est ramené entre −100 et +100. C'est un résumé des indicateurs, pas une prévision.</p>
+    </details>
+  </section>
+
+  <p class="warn">Outil d'aide à la réflexion. Les signaux sont calculés mécaniquement à partir des cours passés et ne constituent pas un conseil en investissement. Les performances passées ne préjugent pas des performances futures.</p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"></script>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const pct=(x,d=1)=>x==null||!isFinite(x)?"—":(x>=0?"+":"")+(x*100).toFixed(d).replace(".",",")+" %";
+const num=(x,d=2)=>x==null||!isFinite(x)?"—":x.toLocaleString("fr-FR",{minimumFractionDigits:d,maximumFractionDigits:d});
+
+/* ---------- Indicateurs ---------- */
+function sma(a,n){const o=Array(a.length).fill(null);let s=0;for(let i=0;i<a.length;i++){s+=a[i];if(i>=n)s-=a[i-n];if(i>=n-1)o[i]=s/n}return o}
+function emaW(a,alpha,n){const o=Array(a.length).fill(null);let e=null,c=0;for(let i=0;i<a.length;i++){const v=a[i];if(v==null)continue;e=e==null?v:alpha*v+(1-alpha)*e;c++;if(c>=n)o[i]=e}return o}
+const ema=(a,n)=>emaW(a,2/(n+1),n);
+function rsi(c,n=14){const up=[0],dn=[0];for(let i=1;i<c.length;i++){const d=c[i]-c[i-1];up.push(Math.max(d,0));dn.push(Math.max(-d,0))}
+  const mu=emaW(up.slice(1),1/n,n),md=emaW(dn.slice(1),1/n,n);const o=[null];
+  for(let i=0;i<mu.length;i++){o.push(mu[i]==null?null:md[i]===0?100:100-100/(1+mu[i]/md[i]))}return o}
+function stdev(a,n){const o=Array(a.length).fill(null);for(let i=n-1;i<a.length;i++){let m=0;for(let j=i-n+1;j<=i;j++)m+=a[j];m/=n;let v=0;for(let j=i-n+1;j<=i;j++)v+=(a[j]-m)**2;o[i]=Math.sqrt(v/(n-1))}return o}
+function enrich(d){
+  const c=d.map(r=>r.c);
+  const s20=sma(c,20),s50=sma(c,50),s200=sma(c,200),r=rsi(c),sd=stdev(c,20);
+  const e12=ema(c,12),e26=ema(c,26);const m=c.map((_,i)=>e12[i]!=null&&e26[i]!=null?e12[i]-e26[i]:null);
+  const ms=Array(c.length).fill(null);{let e=null;const k=2/10;for(let i=0;i<m.length;i++){if(m[i]==null)continue;e=e==null?m[i]:k*m[i]+(1-k)*e;ms[i]=e}}
+  const tr=d.map((x,i)=>i===0?x.h-x.l:Math.max(x.h-x.l,Math.abs(x.h-d[i-1].c),Math.abs(x.l-d[i-1].c)));
+  const at=emaW(tr,1/14,14),vm=sma(d.map(x=>x.v||0),20);
+  return d.map((x,i)=>({...x,s20:s20[i],s50:s50[i],s200:s200[i],rsi:r[i],macd:m[i],sig:ms[i],hist:m[i]!=null&&ms[i]!=null?m[i]-ms[i]:null,
+    bbh:s20[i]!=null?s20[i]+2*sd[i]:null,bbl:s20[i]!=null?s20[i]-2*sd[i]:null,atr:at[i],vm:vm[i]}));
+}
+
+/* ---------- Signaux ---------- */
+const ok=(...v)=>v.every(x=>x!=null&&isFinite(x));
+function analyse(D,i){
+  if(i<1)return[];const d=D[i],p=D[i-1],c=d.c,S=[];const f=x=>num(x);
+  if(ok(d.s200))S.push(c>d.s200?["Tendance",1,`Le cours (${f(c)}) est au-dessus de sa moyenne 200 jours (${f(d.s200)}) : tendance de fond haussière.`]:["Tendance",-1,`Le cours (${f(c)}) est sous sa moyenne 200 jours (${f(d.s200)}) : tendance de fond baissière.`]);
+  if(ok(d.s50,d.s200,p.s50,p.s200)){
+    if(p.s50<=p.s200&&d.s50>d.s200)S.push(["Tendance",2,"Croisement doré : la moyenne 50 jours vient de passer au-dessus de la 200 jours."]);
+    else if(p.s50>=p.s200&&d.s50<d.s200)S.push(["Tendance",-2,"Croisement de la mort : la moyenne 50 jours vient de passer sous la 200 jours."]);
+    else S.push(d.s50>d.s200?["Tendance",1,"La moyenne 50 jours est au-dessus de la 200 jours (configuration haussière)."]:["Tendance",-1,"La moyenne 50 jours est sous la 200 jours (configuration baissière)."]);
+  }
+  if(ok(d.s20))S.push(c>d.s20?["Court terme",1,`Le cours est au-dessus de sa moyenne 20 jours (${f(d.s20)}).`]:["Court terme",-1,`Le cours est sous sa moyenne 20 jours (${f(d.s20)}).`]);
+  if(ok(d.rsi)){const r=d.rsi,t=Math.round(r);
+    if(r<30)S.push(["Momentum",2,`RSI à ${t} : zone de survente, un rebond est possible.`]);
+    else if(r>70)S.push(["Momentum",-2,`RSI à ${t} : zone de surachat, risque de correction.`]);
+    else if(r>=50)S.push(["Momentum",r<65?1:0,`RSI à ${t} : momentum plutôt positif.`]);
+    else S.push(["Momentum",r>35?-1:0,`RSI à ${t} : momentum plutôt négatif.`]);}
+  if(ok(d.macd,d.sig,p.macd,p.sig)){
+    if(p.macd<=p.sig&&d.macd>d.sig)S.push(["Momentum",2,"Le MACD vient de croiser sa ligne de signal à la hausse."]);
+    else if(p.macd>=p.sig&&d.macd<d.sig)S.push(["Momentum",-2,"Le MACD vient de croiser sa ligne de signal à la baisse."]);
+    else S.push(d.macd>d.sig?["Momentum",1,"Le MACD est au-dessus de sa ligne de signal."]:["Momentum",-1,"Le MACD est sous sa ligne de signal."]);}
+  if(ok(d.bbh,d.bbl)){
+    if(c<d.bbl)S.push(["Volatilité",1,"Le cours est sous la bande de Bollinger basse : excès de baisse à court terme."]);
+    else if(c>d.bbh)S.push(["Volatilité",-1,"Le cours est au-dessus de la bande de Bollinger haute : excès de hausse à court terme."]);
+    else S.push(["Volatilité",0,`Le cours est dans les bandes de Bollinger (largeur ${num((d.bbh-d.bbl)/d.s20*100,1)} %).`]);}
+  if(ok(d.vm)&&d.vm>0&&d.v){const q=d.v/d.vm;if(q>1.5){const s=c>=p.c?1:-1;S.push(["Volume",s,`Volume ${num(q,1)}× supérieur à la moyenne sur une séance de ${s>0?"hausse":"baisse"} : mouvement confirmé.`])}}
+  return S;
+}
+const score=S=>S.length?Math.round(100*S.reduce((a,x)=>a+x[1],0)/(2*S.length)):0;
+function verdict(s){if(s>=50)return["Fortement haussier","--up"];if(s>=15)return["Plutôt haussier","--up"];if(s>-15)return["Neutre","--neutral"];if(s>-50)return["Plutôt baissier","--down"];return["Fortement baissier","--down"]}
+
+/* ---------- Backtest ---------- */
+function backtest(D,strat,fees){
+  const n=D.length,pos=Array(n).fill(0);
+  if(strat==="cross"){const c=D.map(x=>x.c),a=sma(c,20),b=sma(c,50);for(let i=0;i<n;i++)pos[i]=a[i]!=null&&b[i]!=null&&a[i]>b[i]?1:0}
+  if(strat==="rsi"){let s=0;for(let i=0;i<n;i++){const r=D[i].rsi;if(r!=null&&r<30)s=1;else if(r!=null&&r>70)s=0;pos[i]=s}}
+  if(strat==="macd"){for(let i=0;i<n;i++)pos[i]=ok(D[i].macd,D[i].sig)&&D[i].macd>D[i].sig?1:0}
+  if(strat==="score"){for(let i=1;i<n;i++)pos[i]=score(analyse(D,i))>15?1:0}
+  const eq=[1],bh=[1],rs=[0],rb=[0];let trades=0,inv=0;
+  for(let i=1;i<n;i++){const r=D[i].c/D[i-1].c-1,e=pos[i-1],pe=i>1?pos[i-2]:0,t=Math.abs(e-pe);if(t)trades++;inv+=e;
+    const x=e*r-t*fees/100;rs.push(x);rb.push(r);eq.push(eq[i-1]*(1+x));bh.push(bh[i-1]*(1+r))}
+  return{eq,bh,stats:[st(rs,eq,inv/(n-1),trades),st(rb,bh,1,0)]};
+}
+function st(r,eq,inv,tr){const n=r.length-1,y=Math.max(n/252,1e-9),m=r.slice(1).reduce((a,b)=>a+b,0)/n;
+  const v=Math.sqrt(r.slice(1).reduce((a,b)=>a+(b-m)**2,0)/(n-1))*Math.sqrt(252);let pk=-1e9,dd=0;for(const e of eq){pk=Math.max(pk,e);dd=Math.min(dd,e/pk-1)}
+  return{tot:eq[eq.length-1]-1,ann:Math.pow(eq[eq.length-1],1/y)-1,vol:v,sh:v>0?m*252/v:null,dd,inv,tr}}
+
+/* ---------- Données d'exemple ---------- */
+function rng(seed){let s=seed>>>0;return()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
+function gauss(R){let u=0,v=0;while(!u)u=R();while(!v)v=R();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+function demo(kind){
+  const cfg={t:[7,[.0012,.0009,.0004,.0015],.015,95],d:[11,[.0008,-.0002,-.0014,-.0011],.017,140],r:[3,[.0006,-.0006,.0005,-.0005],.014,60],c:[21,[.003,-.002,.0035,-.001],.038,28000]}[kind];
+  const R=rng(cfg[0]),out=[],n=520;let c=cfg[3];const day=new Date();day.setHours(0,0,0,0);const dates=[];
+  for(let k=0;dates.length<n;k++){const t=new Date(day);t.setDate(day.getDate()-k);if(kind==="c"||(t.getDay()%6))dates.unshift(t)}
+  for(let i=0;i<n;i++){const drift=cfg[1][Math.min(3,Math.floor(i/n*4))];const o=c*(1+gauss(R)*cfg[2]*.3);c=c*Math.exp(drift+gauss(R)*cfg[2]);
+    const h=Math.max(o,c)*(1+Math.abs(gauss(R))*cfg[2]*.45),l=Math.min(o,c)*(1-Math.abs(gauss(R))*cfg[2]*.45);
+    out.push({t:dates[i],o,h,l,c,v:Math.round(1e6*(1+R()*2)*(1+Math.abs(c/o-1)*20))})}
+  return out;
+}
+
+/* ---------- Import CSV ---------- */
+function parseNum(s){if(s==null)return NaN;s=String(s).trim().replace(/["\s ]/g,"");if(!s||s==="-"||s.toLowerCase()==="null")return NaN;
+  let mult=1;const suf=s.slice(-1).toUpperCase();if("KMB".includes(suf)&&/\d/.test(s.slice(-2,-1))){mult={K:1e3,M:1e6,B:1e9}[suf];s=s.slice(0,-1)}
+  if(s.includes(",")&&s.includes("."))s=s.lastIndexOf(",")>s.lastIndexOf(".")?s.replace(/\./g,"").replace(",","."):s.replace(/,/g,"");else s=s.replace(",",".");
+  return parseFloat(s)*mult}
+function parseDate(s){s=String(s).trim().replace(/"/g,"");let m;
+  if(m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))return new Date(+m[1],m[2]-1,+m[3]);
+  if(m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/)){const y=+m[3]<100?2000+ +m[3]:+m[3];return new Date(y,m[2]-1,+m[1])}
+  const d=new Date(s);return isNaN(d)?null:d}
+function splitLine(line,sep){const out=[];let cur="",q=false;for(const ch of line){if(ch==='"')q=!q;else if(ch===sep&&!q){out.push(cur);cur=""}else cur+=ch}out.push(cur);return out}
+function parseCSV(text){
+  const lines=text.replace(/^﻿/,"").split(/\r?\n/).filter(l=>l.trim());if(lines.length<3)throw new Error("le fichier contient trop peu de lignes.");
+  const first=lines[0];const sep=[";","\t",","].sort((a,b)=>first.split(b).length-first.split(a).length)[0];
+  const H=splitLine(first,sep).map(h=>h.trim().toLowerCase().replace(/"/g,"").normalize("NFD").replace(/[̀-ͯ]/g,""));
+  const find=keys=>H.findIndex(h=>keys.some(k=>h===k||h.startsWith(k)));
+  const iD=find(["date","time","datetime","jour"]),iO=find(["open","ouv"]),iH=find(["high","haut","plus haut","+haut"]),iL=find(["low","bas","plus bas","+bas"]);
+  let iC=find(["close","clot","dernier","price","prix","cours"]);const iA=find(["adj close","adj. close"]);if(iA>=0&&iC===iA){const j=H.findIndex((h,k)=>k!==iA&&h.startsWith("close"));if(j>=0)iC=j}
+  const iV=find(["volume","vol"]);
+  if(iD<0||iC<0)throw new Error("colonnes Date et Clôture introuvables. En-têtes lus : "+H.join(", "));
+  const rows=[];for(const l of lines.slice(1)){const p=splitLine(l,sep);const t=parseDate(p[iD]),c=parseNum(p[iC]);if(!t||!isFinite(c))continue;
+    const o=iO>=0?parseNum(p[iO]):c,h=iH>=0?parseNum(p[iH]):Math.max(o,c),lo=iL>=0?parseNum(p[iL]):Math.min(o,c);
+    rows.push({t,o:isFinite(o)?o:c,h:isFinite(h)?h:c,l:isFinite(lo)?lo:c,c,v:iV>=0?parseNum(p[iV])||0:0})}
+  rows.sort((a,b)=>a.t-b.t);const u=rows.filter((r,i)=>i===0||+r.t!==+rows[i-1].t);
+  if(u.length<30)throw new Error("moins de 30 cotations valides : exporte une période plus longue.");return u;
+}
+
+/* ---------- Rendu ---------- */
+let D=[],name="";
+const cfgP={displayModeBar:false,responsive:true};
+function baseLayout(){const fg=css("--fg"),mu=css("--muted"),ln=css("--line");
+  return{paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",font:{family:"Public Sans, system-ui, sans-serif",color:fg,size:12},
+    margin:{l:48,r:12,t:24,b:28},hovermode:"x unified",showlegend:true,legend:{orientation:"h",y:1.04,x:0,font:{color:mu}},
+    xaxis:{gridcolor:ln,linecolor:ln,rangeslider:{visible:false}},hoverlabel:{bgcolor:css("--surface"),bordercolor:ln,font:{color:fg}}}}
+function render(){
+  if(!D.length)return;const n=D.length,d=D[n-1],p=D[n-2],S=analyse(D,n-1),sc=score(S),[lab,col]=verdict(sc);
+  const up=css("--up"),dn=css("--down"),ac=css("--accent"),mu=css("--muted"),ln=css("--line"),fg=css("--fg");
+  const m=+$("atrm").value||2,stop=ok(d.atr)?d.c-m*d.atr:null,obj=ok(d.atr)?d.c+2*m*d.atr:null;
+  const chg=d.c/p.c-1,pos=Math.max(0,Math.min(100,(sc+100)/2));
+  $("verdict").innerHTML=`
+   <div class="kpi"><span class="lab">${esc(name)}</span><span class="val">${num(d.c)}</span><span class="sub" style="color:var(${chg>=0?"--up":"--down"})">${pct(chg,2)} · ${d.t.toLocaleDateString("fr-FR")}</span></div>
+   <div class="kpi"><span class="lab">Lecture technique</span><span class="pill" style="background:var(${col})">${lab}</span><div class="gauge" title="Score ${sc}"><i style="left:calc(${pos}% - 1px)"></i></div></div>
+   <div class="kpi"><span class="lab">Score des signaux</span><span class="val">${sc>0?"+":""}${sc}<span class="sub"> / 100</span></span><span class="sub">${S.length} signaux évalués</span></div>
+   <div class="kpi"><span class="lab">RSI 14</span><span class="val">${ok(d.rsi)?Math.round(d.rsi):"—"}</span><span class="sub">${ok(d.rsi)?(d.rsi>70?"surachat":d.rsi<30?"survente":"zone neutre"):""}</span></div>
+   <div class="kpi"><span class="lab">Volatilité (ATR)</span><span class="val">${ok(d.atr)?num(d.atr/d.c*100,1)+" %":"—"}</span><span class="sub">amplitude moyenne d'une séance</span></div>`;
+  $("sig").innerHTML=S.map(([f,v,t])=>{const c=v>0?"--up":v<0?"--down":"--neutral";
+    return `<li><span class="vote" style="color:var(${c});background:color-mix(in srgb,var(${c}) 14%,transparent)">${v>0?"+":""}${v}</span><span><span class="fam">${f}.</span> ${t}</span></li>`}).join("")||"<li>Pas assez d'historique.</li>";
+  $("risk").innerHTML=stop?`<table><tr><td>Stop indicatif</td><td class="n">${num(stop)}</td><td class="n" style="color:var(--down)">${pct(stop/d.c-1)}</td></tr>
+    <tr><td>Objectif indicatif (1:2)</td><td class="n">${num(obj)}</td><td class="n" style="color:var(--up)">${pct(obj/d.c-1)}</td></tr></table>
+    <p class="note">Calculés à partir de l'ATR : ${m} × ${num(d.atr)}.</p>`:"<p class='note'>Historique trop court.</p>";
+  sizeCalc(stop);
+  const C=D.map(x=>x.c);const perf=k=>n>k?C[n-1]/C[n-1-k]-1:null;
+  let pk=-1e9,dd=0;for(const c of C){pk=Math.max(pk,c);dd=Math.min(dd,c/pk-1)}
+  const R=C.slice(1).map((c,i)=>c/C[i]-1),mr=R.reduce((a,b)=>a+b,0)/R.length,vol=Math.sqrt(R.reduce((a,b)=>a+(b-mr)**2,0)/(R.length-1)*252);
+  $("stats").innerHTML=[["Performance 1 mois",perf(21)],["Performance 3 mois",perf(63)],["Performance 1 an",perf(252)],["Volatilité annualisée",vol],["Perte maximale (drawdown)",dd]]
+    .map(([k,v])=>`<tr><td>${k}</td><td class="n">${pct(v)}</td></tr>`).join("");
+
+  const X=D.map(x=>x.t),L=baseLayout();
+  const tr=[{type:"candlestick",x:X,open:D.map(x=>x.o),high:D.map(x=>x.h),low:D.map(x=>x.l),close:C,name:"Cours",increasing:{line:{color:up,width:1},fillcolor:up},decreasing:{line:{color:dn,width:1},fillcolor:dn},yaxis:"y"},
+    {x:X,y:D.map(x=>x.bbh),name:"Bollinger",line:{color:mu,width:.7},hoverinfo:"skip",legendgroup:"bb"},
+    {x:X,y:D.map(x=>x.bbl),name:"Bollinger bas",line:{color:mu,width:.7},fill:"tonexty",fillcolor:"rgba(127,140,133,.10)",hoverinfo:"skip",showlegend:false,legendgroup:"bb"},
+    {x:X,y:D.map(x=>x.s50),name:"MM 50",line:{color:ac,width:1.6}},
+    {x:X,y:D.map(x=>x.s200),name:"MM 200",line:{color:"#b07a1f",width:1.6}},
+    {type:"bar",x:X,y:D.map(x=>x.v),name:"Volume",marker:{color:D.map(x=>x.c>=x.o?up:dn),opacity:.55},yaxis:"y2",showlegend:false},
+    {x:X,y:D.map(x=>x.rsi),name:"RSI",line:{color:"#7d5ba6",width:1.2},yaxis:"y3",showlegend:false},
+    {type:"bar",x:X,y:D.map(x=>x.hist),name:"Histogramme MACD",marker:{color:D.map(x=>(x.hist||0)>=0?up:dn)},yaxis:"y4",showlegend:false},
+    {x:X,y:D.map(x=>x.macd),name:"MACD",line:{color:ac,width:1.1},yaxis:"y4",showlegend:false},
+    {x:X,y:D.map(x=>x.sig),name:"Signal",line:{color:"#b07a1f",width:1.1},yaxis:"y4",showlegend:false}];
+  const ax=(dom,t)=>({domain:dom,gridcolor:ln,zerolinecolor:ln,title:{text:t,font:{size:11,color:mu}},tickfont:{color:mu}});
+  Object.assign(L,{yaxis:ax([.42,1],""),yaxis2:ax([.30,.39],"Vol."),yaxis3:{...ax([.15,.28],"RSI"),range:[0,100],tickvals:[30,70]},yaxis4:ax([0,.13],"MACD"),
+    shapes:[{type:"line",xref:"paper",x0:0,x1:1,yref:"y3",y0:30,y1:30,line:{color:mu,dash:"dot",width:1}},{type:"line",xref:"paper",x0:0,x1:1,yref:"y3",y0:70,y1:70,line:{color:mu,dash:"dot",width:1}}]
+      .concat(stop?[{type:"line",xref:"paper",x0:0,x1:1,yref:"y",y0:stop,y1:stop,line:{color:dn,dash:"dash",width:1}}]:[]),
+    annotations:stop?[{xref:"paper",x:1,y:stop,yref:"y",text:"stop indicatif",showarrow:false,xanchor:"right",yanchor:"top",font:{size:10,color:dn}}]:[]});
+  Plotly.react("chart",tr,L,cfgP);
+  runBT();
+}
+function sizeCalc(stop){const d=D[D.length-1],cap=+$("cap").value||0,rk=+$("rk").value||0;
+  if(!stop||stop>=d.c){$("size").textContent="";return}
+  let q=Math.floor(cap*rk/100/(d.c-stop));q=Math.min(q,Math.floor(cap/d.c));
+  $("size").innerHTML=`Taille de position suggérée : <b>${q.toLocaleString("fr-FR")} titres</b> (≈ ${num(q*d.c,0)} €). Si le stop est touché, la perte serait d'environ ${num(q*(d.c-stop),0)} €, soit ${num(rk,2)} % du capital.`}
+function runBT(){
+  const r=backtest(D,$("strat").value,+$("fees").value||0),X=D.map(x=>x.t),L=baseLayout();
+  L.yaxis={gridcolor:css("--line"),title:{text:"Valeur de 100 placés",font:{size:11,color:css("--muted")}},tickfont:{color:css("--muted")}};
+  Plotly.react("btchart",[{x:X,y:r.eq.map(v=>v*100),name:"Stratégie",line:{color:css("--accent"),width:2}},{x:X,y:r.bh.map(v=>v*100),name:"Acheter et garder",line:{color:css("--muted"),width:1.6}}],L,cfgP);
+  const [a,b]=r.stats,rows=[["Performance totale","tot",pct],["Performance annualisée","ann",pct],["Volatilité","vol",pct],["Ratio de Sharpe","sh",x=>num(x,2)],["Perte maximale","dd",pct],["Temps investi","inv",x=>num(x*100,0)+" %"],["Nombre d'ordres","tr",x=>String(x)]];
+  $("bt").innerHTML=`<tr><th></th><th class="n">Stratégie</th><th class="n">Acheter et garder</th></tr>`+rows.map(([k,f,fm])=>`<tr><td>${k}</td><td class="n">${fm(a[f])}</td><td class="n">${f==="tr"?"—":fm(b[f])}</td></tr>`).join("");
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+function loadDemo(){const k=$("demo").value;D=enrich(demo(k));name=$("demo").selectedOptions[0].text.replace("Exemple : ","Exemple · ");
+  $("srcnote").textContent="Données fictives générées pour la démonstration. Importe un CSV pour analyser un vrai actif.";render()}
+$("demo").addEventListener("change",loadDemo);
+$("csv").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{try{D=enrich(parseCSV(rd.result));name=f.name.replace(/\.[^.]+$/,"");$("srcnote").innerHTML=`Fichier importé : ${esc(f.name)} · ${D.length} cotations du ${D[0].t.toLocaleDateString("fr-FR")} au ${D[D.length-1].t.toLocaleDateString("fr-FR")}`;render()}
+    catch(err){$("srcnote").innerHTML=`<span class="err">Import impossible : ${esc(err.message)}</span>`}};rd.readAsText(f)});
+["atrm"].forEach(id=>$(id).addEventListener("input",render));
+["cap","rk"].forEach(id=>$(id).addEventListener("input",()=>{const d=D[D.length-1],m=+$("atrm").value||2;sizeCalc(ok(d.atr)?d.c-m*d.atr:null)}));
+["strat","fees"].forEach(id=>$(id).addEventListener("input",runBT));
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",render);
+new MutationObserver(render).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+function start(){if(window.Plotly)loadDemo();else{$("chart").innerHTML="<p class='err'>Le module de graphiques n'a pas pu se charger. Recharge la page.</p>"}}
+start();
+})();
+</script>
